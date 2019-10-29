@@ -5,11 +5,13 @@ from util.convert import strings_to_tensor
 from phone_vae import PhoneVAE
 
 
+
 """
 Use SVI to train model/guide
 """
-MAX_STRING_LEN = 21
+MAX_STRING_LEN = 25
 NUM_EPOCHS = 50
+CUDA = False
 TEST_STRINGS = [
     "+44 (0) 745 55 26 372",
     "+44-745-55-71-361",
@@ -27,23 +29,24 @@ svae = PhoneVAE(batch_size=len(TEST_STRINGS))
 optimizer = Adam({"lr": 1.e-3})
 svi = SVI(svae.model, svae.guide, optimizer, loss=Trace_ELBO())
 
-def train(svi, test_strings, cuda=False):
-    """
-    Screw epoch and just run SVI on the whole dataset at once
-    """
-    epoch_loss = 0.
-    one_hot_strings = strings_to_tensor(test_strings, MAX_STRING_LEN)
-    if cuda: one_hot_strings.cuda()
 
-    epoch_loss += svi.step(one_hot_strings)
-    avg_loss = epoch_loss / len(test_strings)
-    return avg_loss
-
+"""
+Train the model
+"""
 train_elbo = []
-for i in range(NUM_EPOCHS):
-    avg_loss = train(svi, TEST_STRINGS)
-    if i % 5 == 0:
-        train_elbo.append(avg_loss)
+for e in range(NUM_EPOCHS):
+    epoch_loss = 0.
+    for string in TEST_STRINGS:
+        print(string)
+        one_hot_string = strings_to_tensor([string], MAX_STRING_LEN)
+        if CUDA: one_hot_string.cuda()
+        svi.step(one_hot_string)
+        epoch_loss += svi.step(one_hot_string)
+    if e % 5 == 0:
+        avg_epoch_loss = epoch_loss/len(TEST_STRINGS)
+        train_elbo.append(avg_epoch_loss)
+        epoch_loss = 0
+
 
 import matplotlib.pyplot as plt
 
