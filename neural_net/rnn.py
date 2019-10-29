@@ -27,7 +27,6 @@ class Encoder(nn.Module):
         - input: <1 x batch_size x N_LETTER>
         - hidden: (<num_layer x batch_size x hidden_size>, <num_layer x batch_size x hidden_size>)
         """
-        input = input.view(1, self.batch_size, -1)
         lstm_out, hidden = self.lstm(input, hidden)
         return lstm_out, hidden
     

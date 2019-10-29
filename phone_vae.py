@@ -1,3 +1,5 @@
+import os
+
 import pyro
 import pyro.distributions as dist
 import torch
@@ -5,14 +7,14 @@ import torch.nn as nn
 
 from data_loader.data_loader import load_json
 from neural_net.rnn import Encoder, Decoder
-from util.convert import index_to_letter, letter_to_index, strings_to_tensor, N_LETTER, SOS_CHAR, EOS_CHAR, SOS_tensor, EOS_tensor, format_ext, format_prefix, format_number
+from util.convert import index_to_digit, strings_to_tensor, N_DIGIT, N_LETTER, SOS_CHAR, EOS_CHAR, SOS_tensor, EOS_tensor, format_ext, format_prefix, format_number
 
 
 COUNTRY_TO_EXT = load_json("./data/phone.json")
 EXT_TO_COUNTRY = {v: k for k, v in COUNTRY_TO_EXT.items()}
 EXT = list(COUNTRY_TO_EXT.values())
-HIDDEN_SIZE = 64
-
+HIDDEN_SIZE = 32
+MAX_STRING_LEN = 35
 
 """
 TODO: How to treat x[0], x[1], ... using vector notation
@@ -21,17 +23,17 @@ TODO: How to treat x[0], x[1], ... using vector notation
 
 def generate_string(rnn, address, max_length=15, hidden_layer=None):
     """
-    Given a character RNN, generate a name by sampling RNN generated distribution per timestep
+    Given a character RNN, generate a digit by sampling RNN generated distribution per timestep
     """
     name = ""
     next_char = SOS_CHAR
     if hidden_layer is None: hidden_layer = rnn.init_hidden()
     for _ in range(max_length):
         if next_char == EOS_CHAR: break
-        lstm_input = strings_to_tensor([next_char],1)
+        lstm_input = strings_to_tensor([next_char],1,number_only=True)
         next_char_probs, hidden_layer = rnn(lstm_input, hidden_layer)
         next_char_index = pyro.sample(f"char-{address}", dist.Categorical(next_char_probs)).item()
-        next_char = index_to_letter(next_char_index)
+        next_char = index_to_digit(next_char_index)
         if next_char != SOS_CHAR and next_char != EOS_CHAR:
             name += next_char
         address += 1
@@ -40,22 +42,22 @@ def generate_string(rnn, address, max_length=15, hidden_layer=None):
 
 
 class PhoneVAE(nn.Module):
-    def __init__(self, batch_size=1, hidden_size=64, use_cuda=False):
+    def __init__(self, batch_size=1, hidden_size=HIDDEN_SIZE, use_cuda=False):
         super(PhoneVAE, self).__init__()
-        self.batch_size = 1
-        self.hidden_size = 64
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
 
-        self.prefix_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=N_LETTER)
-        self.number_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=N_LETTER)
+        self.prefix_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=N_DIGIT)
+        self.number_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=N_DIGIT)
 
         self.encoder_rnn = Encoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size)
         # TODO: Work around this hacky way of generating Bernoulli probability
-        self.ext_exists_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=2)
-        self.ext_format_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=6)
-        self.ext_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=len(EXT))
-        self.prefix_format_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=6)
-        self.number_len_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=4)
-        self.number_format_rnn = Decoder(input_size=N_LETTER, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=3)
+        self.ext_exists_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=2)
+        self.ext_format_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=6)
+        self.ext_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=len(EXT))
+        self.prefix_format_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=6)
+        self.number_len_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=4)
+        self.number_format_rnn = Decoder(input_size=N_DIGIT, hidden_size=self.hidden_size, batch_size=self.batch_size, output_size=3)
 
         if use_cuda: 
             self.cuda()
@@ -85,7 +87,8 @@ class PhoneVAE(nn.Module):
         addr = 0
         encoder_hidden = self.encoder_rnn.init_hidden()
         for i in range(x.shape[0]):
-            _, encoder_hidden = self.encoder_rnn(x[i], encoder_hidden)
+            # RNN requires 3 dimensional inputs
+            _, encoder_hidden = self.encoder_rnn(x[i].unsqueeze(0), encoder_hidden)
         
         ext_exists_probs, _ = self.ext_exists_rnn(SOS_tensor(), encoder_hidden)
         ext_exists = pyro.sample("ext_exists", dist.Bernoulli(ext_exists_probs[0][0][0])).item()
@@ -162,7 +165,39 @@ class PhoneVAE(nn.Module):
         full_number = format_number(number_parts, number_format)
 
         output = full_ext + full_prefix + full_number
-        one_hot_output = strings_to_tensor([output], 25)
+        one_hot_output = strings_to_tensor([output], MAX_STRING_LEN)
         pyro.sample("output", dist.Bernoulli(one_hot_output).to_event(1), obs=x)
 
         return output
+
+    def save_checkpoint(self, folder="nn_model", filename="checkpoint.pth.tar"):
+        filepath = os.path.join(folder, filename)
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        save_content = {
+            'encoder_rnn': self.encoder_rnn.state_dict(),
+            'ext_exists_rnn': self.ext_exists_rnn.state_dict(),
+            'ext_format_rnn': self.ext_format_rnn.state_dict(),
+            'ext_rnn': self.ext_rnn.state_dict(),
+            'prefix_format_rnn': self.prefix_format_rnn.state_dict(),
+            'number_format_rnn': self.number_format_rnn.state_dict(),
+            'number_len_rnn': self.number_len_rnn.state_dict(),
+            'prefix_rnn': self.prefix_rnn.state_dict(),
+            'number_rnn': self.number_rnn.state_dict()
+        }
+        torch.save(save_content, filepath)
+
+    def load_checkpoint(self, folder="nn_model", filename="checkpoint.pth.tar"):
+        filepath = os.path.join(folder, filename)
+        if not os.path.exists(filepath): 
+            raise(f"No model in path {folder}")
+        save_content = torch.load(filepath)
+        self.encoder_rnn.load_state_dict(save_content['encoder_rnn'])
+        self.ext_exists_rnn.load_state_dict(save_content['ext_exists_rnn'])
+        self.ext_format_rnn.load_state_dict(save_content['ext_format_rnn'])
+        self.ext_rnn.load_state_dict(save_content['ext_rnn'])
+        self.prefix_format_rnn.load_state_dict(save_content['prefix_format_rnn'])
+        self.number_format_rnn.load_state_dict(save_content['number_format_rnn'])
+        self.number_len_rnn.load_state_dict(save_content['number_len_rnn'])
+        self.prefix_rnn.load_state_dict(save_content['prefix_rnn'])
+        self.number_rnn.load_state_dict(save_content['number_rnn'])

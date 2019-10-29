@@ -6,34 +6,54 @@ import torch
 SOS_CHAR = "*"
 EOS_CHAR = "#"
 # Decided to remove " .,:" since we assume they only occur in separators
-ALL_LETTERS = string.digits+SOS_CHAR+EOS_CHAR
+ALL_DIGITS = string.digits+SOS_CHAR+EOS_CHAR
+N_DIGIT = len(ALL_DIGITS)
+
+ALL_LETTERS = string.digits+SOS_CHAR+EOS_CHAR+' .,:()+-'
 N_LETTER = len(ALL_LETTERS)
 
 
-def index_to_letter(index):
+
+def index_to_letter(index: int) -> str:
     return ALL_LETTERS[index]
 
-def letter_to_index(letter):
+def letter_to_index(letter: str) -> int:
     return ALL_LETTERS.find(letter)
 
-def pad_string(original: str, desired_len: int, pad_character: str = ' '):
+def index_to_digit(index: int) -> str:
+    return ALL_DIGITS[index]
+
+def digit_to_index(digit: str) -> int:
+    return ALL_DIGITS.find(digit)
+
+
+def pad_string(original: str, desired_len: int, pad_character: str = '0'):
     """
     Returns the padded version of the original string to length: desired_len
     """
     return original + (pad_character * (desired_len - len(original)))
 
-def strings_to_tensor(strings: list, max_name_len: int):
+
+def strings_to_tensor(strings: list, max_name_len: int, number_only: bool = False):
     """
     Turn a list of strings into a tensor of one-hot letter vectors
     of shape: <max_name_len x len(strings) x n_letters>
 
-    All names are padded with ' ' such that they have the length: desired_len
+    All strings are padded with '0's such that they have the length: desired_len
+    If number_only is true, one-hot letter vectors only account for digits
     """
+    if number_only:
+        to_index_func = digit_to_index
+        inner_len = N_DIGIT
+    else: 
+        to_index_func = letter_to_index
+        inner_len = N_LETTER
+
     strings = list(map(lambda name: pad_string(name, max_name_len), strings))
-    tensor = torch.zeros(max_name_len, len(strings), N_LETTER)
+    tensor = torch.zeros(max_name_len, len(strings), inner_len)
     for i_s, s in enumerate(strings):
         for i_char, letter in enumerate(s):
-            tensor[i_char][i_s][letter_to_index(letter)] = 1
+            tensor[i_char][i_s][to_index_func(letter)] = 1
     return tensor
 
 def unicode_to_ascii(s):
@@ -43,10 +63,10 @@ def unicode_to_ascii(s):
     )
 
 def SOS_tensor():
-    return strings_to_tensor(["*"], 1)
+    return strings_to_tensor(["*"], 1, number_only=True)
 
 def EOS_tensor():
-    return strings_to_tensor(["#"], 1)
+    return strings_to_tensor(["#"], 1, number_only=True)
 
 def format_ext(ext, ext_format) -> str:
     if ext_format == 0: return ext

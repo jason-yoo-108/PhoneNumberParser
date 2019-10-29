@@ -9,8 +9,8 @@ from phone_vae import PhoneVAE
 """
 Use SVI to train model/guide
 """
-MAX_STRING_LEN = 25
-NUM_EPOCHS = 50
+NUM_EPOCHS = 10
+MAX_STRING_LEN = 35
 CUDA = False
 TEST_STRINGS = [
     "+44 (0) 745 55 26 372",
@@ -25,7 +25,7 @@ TEST_STRINGS = [
     "646-717-2202"
 ]
 
-svae = PhoneVAE(batch_size=len(TEST_STRINGS))
+svae = PhoneVAE(batch_size=1)
 optimizer = Adam({"lr": 1.e-3})
 svi = SVI(svae.model, svae.guide, optimizer, loss=Trace_ELBO())
 
@@ -36,8 +36,8 @@ Train the model
 train_elbo = []
 for e in range(NUM_EPOCHS):
     epoch_loss = 0.
+    print(f"=== EPOCH {e} ===")
     for string in TEST_STRINGS:
-        print(string)
         one_hot_string = strings_to_tensor([string], MAX_STRING_LEN)
         if CUDA: one_hot_string.cuda()
         svi.step(one_hot_string)
@@ -52,3 +52,5 @@ import matplotlib.pyplot as plt
 
 plt.plot(train_elbo)
 plt.show()
+
+svae.save_checkpoint()
