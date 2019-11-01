@@ -1,0 +1,8 @@
+{
+    "adam": {
+        "lr": 0.001
+    },
+    "cuda": false,
+    "num_epochs": 100,
+    "session_name": "cf2"
+}

@@ -66,7 +66,7 @@ class Decoder(nn.Module):
         SHAPE REQUIREMENT
         - input: <1 x batch_size x N_LETTER>
         - hidden: (<num_layer x batch_size x hidden_size>, <num_layer x batch_size x hidden_size>)
-        - lstm_out: <N_LETTER x batch_size x hidden_size>
+        - lstm_out: <1 x batch_size x N_LETTER>
         """
         # input = input.view(len(input), self.batch_size, -1)
         lstm_out, hidden = self.lstm(input, hidden)
