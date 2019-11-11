@@ -3,6 +3,6 @@
         "lr": 0.001
     },
     "cuda": false,
-    "num_epochs": 1,
+    "num_epochs": 100,
     "session_name": "cf1"
 }

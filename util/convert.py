@@ -6,7 +6,7 @@ import torch
 SOS_CHAR = "*"
 EOS_CHAR = "#"
 # Decided to remove " .,:" since we assume they only occur in separators
-ALL_DIGITS = string.digits+SOS_CHAR+EOS_CHAR
+ALL_DIGITS = string.digits
 N_DIGIT = len(ALL_DIGITS)
 
 ALL_LETTERS = string.digits+SOS_CHAR+EOS_CHAR+' .,:()+-'
@@ -33,8 +33,22 @@ def pad_string(original: str, desired_len: int, pad_character: str = EOS_CHAR):
     """
     return original + (pad_character * (desired_len - len(original)))
 
+def experiment(tensor: list):
+    """
+    Convert a 3D tensor into a 2D form
+    """
+    new_tensor = torch.zeros(tensor.shape[0],tensor.shape[1])
+    for i in range(tensor.shape[0]):
+        for j in range(tensor.shape[1]):
+            one_index = float('inf')
+            for k in range(tensor.shape[2]):
+                if tensor[i][j][k] == 1.:
+                    one_index = k
+                    break
+            new_tensor[i][j] = one_index
+    return new_tensor
 
-def strings_to_tensor(strings: list, max_name_len: int, number_only: bool = False, pad_char: str = None):
+def strings_to_tensor(strings: list, max_name_len: int, number_only: bool = False, pad_char: str = None, custom_input_size: int = None):
     """
     Turn a list of strings into a tensor of one-hot letter vectors
     of shape: <max_name_len x len(strings) x n_letters>
@@ -48,6 +62,10 @@ def strings_to_tensor(strings: list, max_name_len: int, number_only: bool = Fals
     else: 
         to_index_func = letter_to_index
         inner_len = N_LETTER
+    
+    if custom_input_size is not None:
+        to_index_func = lambda x: int(x)
+        inner_len = custom_input_size
 
     if pad_char is None:
         strings = list(map(lambda name: pad_string(name, max_name_len), strings))

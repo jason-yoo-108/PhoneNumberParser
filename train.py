@@ -21,6 +21,7 @@ SESSION_NAME = config['session_name']
 
 MAX_STRING_LEN = 35
 RECORD_EVERY = 1
+"""
 TEST_STRINGS = [
     "+44 (0) 745 55 26 372",
     "+44-745-55-71-361",
@@ -32,6 +33,18 @@ TEST_STRINGS = [
     "6048337213",
     "(202)820-4141",
     "646-717-2202"
+]
+"""
+TEST_STRINGS = [
+    "+1 604 250 1363",
+    "+1 604 922 5941",
+    "+1 604 337 1000",
+    "+1 604 250 9999",
+    "+1 604 922 1414",
+    "+1 604 337 2654",
+    "+1 604 250 9573",
+    "+1 604 922 2543",
+    "+1 604 337 5068"
 ]
 
 svae = PhoneVAE(batch_size=1)
@@ -47,7 +60,7 @@ for e in range(NUM_EPOCHS):
     epoch_loss = 0.
     for string in TEST_STRINGS:
         # Pad input string differently than observed string so program doesn't get rewarded by making string short
-        one_hot_string = strings_to_tensor([string], MAX_STRING_LEN, pad_char=SOS_CHAR)
+        one_hot_string = strings_to_tensor([string], MAX_STRING_LEN)
         if CUDA: one_hot_string.cuda()
         svi.step(one_hot_string)
         epoch_loss += svi.step(one_hot_string)

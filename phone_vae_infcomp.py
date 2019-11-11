@@ -8,7 +8,7 @@ import torch.nn as nn
 from data_loader.data_loader import load_json
 from neural_net.mlp import HiddenLayerMLP
 from neural_net.rnn import Encoder, Decoder
-from util.convert import index_to_digit, strings_to_tensor, strings_to_probs, N_DIGIT, N_LETTER, SOS_CHAR, EOS_CHAR, SOS_tensor, EOS_tensor, format_ext, format_prefix, format_number, tensor_to_string, experiment
+from util.convert import letter_to_index, index_to_digit, strings_to_tensor, strings_to_probs, N_DIGIT, N_LETTER, SOS_CHAR, EOS_CHAR, SOS_tensor, EOS_tensor, format_ext, format_prefix, format_number, tensor_to_string, experiment
 
 
 COUNTRY_TO_EXT = load_json("./data/phone.json")
@@ -16,6 +16,24 @@ EXT_TO_COUNTRY = {v: k for k, v in COUNTRY_TO_EXT.items()}
 EXT = list(COUNTRY_TO_EXT.values())
 HIDDEN_SIZE = 32
 MAX_STRING_LEN = 35
+
+
+def index_encode(numbers: list, batch_size: int = 1, padding: str = ' '):
+    encoded = torch.zeros(MAX_STRING_LEN, batch_size)
+    for num_idx, number in enumerate(numbers):
+        for char_idx in range(MAX_STRING_LEN):
+            character = number[char_idx] if char_idx < len(number) else padding
+            encoded[char_idx,num_idx] = letter_to_index(character)
+    return encoded
+
+def index_encode_to_one_hot_encode(index_encode: list):
+    n, d = index_encode.shape
+    encoded = torch.zeros(n,d,N_LETTER)
+    for i in range(n):
+        for j in range(d):
+            encoded[i,j,int(index_encode[i,j])] = 1
+    return encoded
+
 
 
 def generate_string(rnn, address, address_type, length=15, hidden_layer=None):
@@ -81,7 +99,7 @@ class PhoneVAE(nn.Module):
         if use_cuda: 
             self.cuda()
 
-    def guide(self, x):
+    def guide(self, observations={}):
         """
         1 Run observed values through RNN to obtain the hidden state
         2 Pass the hidden state to these neural nets in a sequential order, then sample latents z
@@ -94,13 +112,18 @@ class PhoneVAE(nn.Module):
         """
         pyro.module("encoder", self.encoder_rnn)
         pyro.module("prefix", self.prefix_rnn)
+        pyro.module("number_part_len_rnn", self.number_part_len_rnn)
         pyro.module("number", self.number_rnn)
-        pyro.module("ext_exists", self.ext_exists_mlp)
+        #pyro.module("ext_exists", self.ext_exists_mlp)
         pyro.module("ext_format", self.ext_format_mlp)
         pyro.module("ext", self.ext_mlp)
         pyro.module("prefix_format", self.prefix_format_mlp)
+        pyro.module("prefix_format", self.prefix_len_mlp)
         pyro.module("number_len", self.number_len_mlp)
         pyro.module("number_format", self.number_format_mlp)
+        
+        x = observations['x']
+        x = index_encode_to_one_hot_encode(x)
 
         encoder_hidden = self.encoder_rnn.init_hidden()
         for i in range(x.shape[0]):
@@ -109,12 +132,14 @@ class PhoneVAE(nn.Module):
         
         flattened_encoder_hidden = torch.cat((encoder_hidden[0].flatten(),encoder_hidden[1].flatten())).unsqueeze(0)
         ext_exists_probs = self.ext_exists_mlp(flattened_encoder_hidden)
-        ext_exists = pyro.sample("ext_exists", dist.Categorical(ext_exists_probs)).item()
-        if ext_exists:
-            ext_format_probs = self.ext_format_mlp(flattened_encoder_hidden)
-            pyro.sample("ext_format", dist.Categorical(ext_format_probs)).item()
-            ext_probs = self.ext_mlp(flattened_encoder_hidden)
-            ext = pyro.sample("ext", dist.Categorical(ext_probs)).item()
+        
+        #ext_exists = pyro.sample("ext_exists", dist.Categorical(ext_exists_probs)).item()
+        #if ext_exists:
+        ext_format_probs = self.ext_format_mlp(flattened_encoder_hidden)
+        pyro.sample("ext_format", dist.Categorical(ext_format_probs)).item()
+        ext_probs = self.ext_mlp(flattened_encoder_hidden)
+        ext = EXT[pyro.sample("ext", dist.Categorical(ext_probs)).item()]
+        
         
         prefix_format_probs = self.prefix_format_mlp(flattened_encoder_hidden)
         pyro.sample("prefix_format", dist.Categorical(prefix_format_probs)).item()
@@ -135,11 +160,11 @@ class PhoneVAE(nn.Module):
             number_part, hidden_layer, _ = generate_string(self.number_rnn,0,f"number_part_{i}",length=number_part_len,hidden_layer=hidden_layer)
             number_parts.append(number_part)
         
-        canonical_number = f"+{ext}-" if ext_exists else ""
+        canonical_number = f"+{ext}-" if ext != "" else ""
         canonical_number += f"({prefix})-"+'-'.join(number_parts)
         return {'canonical_number': canonical_number}
 
-    def model(self, x):
+    def model(self, observations={'x': '1234'}):
         """
         Parsed Format
         - Extension
@@ -155,15 +180,13 @@ class PhoneVAE(nn.Module):
         6 Sample main number components repeatedly from RNN
         7 One hot encode the assembled number and observe them against real data
         """
-        pyro.module("prefix", self.prefix_rnn)
-        pyro.module("number", self.number_rnn)
 
         ext, full_ext = "", ""
-        ext_exists = pyro.sample("ext_exists", dist.Categorical(torch.tensor([1/2]*2))).item()
-        if ext_exists:
-            ext_format = pyro.sample("ext_format", dist.Categorical(torch.tensor([1/6]*6))).item()
-            ext = pyro.sample("ext", dist.Categorical(torch.tensor([1/len(EXT)]*len(EXT)))).item()
-            full_ext = format_ext(str(ext), ext_format)
+        #ext_exists = pyro.sample("ext_exists", dist.Categorical(torch.tensor([1/2]*2))).item()
+        #if ext_exists:
+        ext_format = pyro.sample("ext_format", dist.Categorical(torch.tensor([1/6]*6))).item()
+        ext = pyro.sample("ext", dist.Categorical(torch.tensor([1/len(EXT)]*len(EXT)))).item()
+        full_ext = format_ext(EXT[ext], ext_format)
         
         prefix_format = pyro.sample("prefix_format", dist.Categorical(torch.tensor([1/6]*6))).item()
         prefix_len = pyro.sample("prefix_len", dist.Categorical(torch.tensor([1/3]*3))).item() + 2 # From 2 to 5
@@ -189,18 +212,10 @@ class PhoneVAE(nn.Module):
         output = full_ext + full_prefix + full_number
         probs = strings_to_probs([output], MAX_STRING_LEN)
         
-        new_x = experiment(x)
-        pyro.sample("output", dist.Categorical(probs), obs=new_x)
-
-        """
-        print("=============================================")
-        print(f"NUMBER: {output}")
-        print(f"formatted extension: {full_ext}")
-        print(f"formatted prefix: {full_prefix}")
-        print(f"formatted number parts: {full_number}")
-        print("=============================================")
-        """
-        return output
+        x = observations['x']
+        if type(x) == str: x = index_encode([x])
+        return pyro.sample("x", dist.Categorical(probs), obs=x)
+        #return output
 
     def save_checkpoint(self, folder="nn_model", filename="checkpoint.pth.tar"):
         filepath = os.path.join(folder, filename)
