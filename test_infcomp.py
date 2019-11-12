@@ -13,9 +13,11 @@ from phone_infcomp import PhoneCSIS, MAX_STRING_LEN
 
 import os
 
-NN_FILENAME = "infcomp_best.pth.tar"
+NN_FILENAME = "infcomp.pth.tar"
 NUM_SAMPLES = 100
-TEST_DATASET = ["+1 (604) 922 5941"]
+#TEST_DATASET = ["+1 (604) 922 5941"]
+TEST_DATASET = ["+1 (604) "]
+
 
 phone_csis = PhoneCSIS()
 phone_csis.load_checkpoint(filename=NN_FILENAME)
@@ -38,6 +40,7 @@ for phone_number in TEST_DATASET:
         prefix = ""
         for i in range(prefix_len):
             prefix += str(sample.nodes[f'prefix_{i}']['value'].item())
+        """
         number_len = sample.nodes['number_len']['value'].item()+2
         number_parts = []
         for i in range(number_len):
@@ -47,6 +50,8 @@ for phone_number in TEST_DATASET:
                 number_part += str(sample.nodes[f'number_part_{i}_{j}']['value'].item())
             number_parts.append(number_part)
         print(f"Canonical Number: +{ext} ({prefix}) {'-'.join(number_parts)}")
+        """
+        print(f"Canonical Number: +{ext} ({prefix})")
     print("=============================")
 
 """

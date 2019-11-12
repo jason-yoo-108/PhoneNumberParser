@@ -8,6 +8,7 @@ class HiddenLayerMLP(nn.Module):
         """
         super(HiddenLayerMLP, self).__init__()
         self.fc1 = nn.Linear(input_size, output_size)
+        self.relu1 = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
     
     def forward(self, input):
@@ -17,5 +18,6 @@ class HiddenLayerMLP(nn.Module):
         - output: <batch_size x output_size>
         """
         output = self.fc1(input)
+        output = self.relu1(output)
         output = self.softmax(output)
         return output

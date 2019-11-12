@@ -13,20 +13,20 @@ from phone_infcomp import PhoneCSIS
 
 import os
 
-CONTINUE_TRAINING = False
-N_STEPS = 200
+CONTINUE_TRAINING = True
+N_STEPS = 100
 phone_csis = PhoneCSIS()
-optimizer = Adam({'lr': 0.0002})
+optimizer = Adam({'lr': 0.0005})
 
 if CONTINUE_TRAINING: phone_csis.load_checkpoint(filename="infcomp.pth.tar")
 
-csis = pyro.infer.CSIS(phone_csis.model, phone_csis.guide, optimizer, num_inference_samples=10, training_batch_size=50)
+csis = pyro.infer.CSIS(phone_csis.model, phone_csis.guide, optimizer, num_inference_samples=10, training_batch_size=30)
 
 losses = []
 for step in range(N_STEPS):
-    if step%5 == 0: print(f"step: {step}")
     loss = csis.step()
     losses.append(loss)
+    if step%5 == 0: print(f"step: {step} - loss: {loss}")
 
 import matplotlib.pyplot as plt
 plt.plot(losses)
