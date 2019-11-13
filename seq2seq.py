@@ -39,6 +39,7 @@ class Decoder(nn.Module):
         lstm_out = self.softmax(lstm_out)
         return lstm_out, hidden
 
+"""
 DATASET = [
     "my name is jason",
     "will you workkkk",
@@ -47,9 +48,14 @@ DATASET = [
     "please god damnn",
     "memorize thissss"
 ]
+"""
+CHARS = "abcdefghijklmnopqrstuvwxyz "
+
+DATASET = ["abcdefghijklmno" + n for n in CHARS]
+
+
 EPOCHS = 1000
 
-CHARS = "abcdefghijklmnopqrstuvwxyz "
 def char_to_index(char: str) -> int:
     return CHARS.find(char)
 def index_to_char(index: int) -> str:

@@ -14,7 +14,7 @@ from util.convert import strings_to_probs, N_DIGIT, N_LETTER, format_ext, format
 COUNTRY_TO_EXT = load_json("./data/phone.json")
 EXT_TO_COUNTRY = {v: k for k, v in COUNTRY_TO_EXT.items()}
 EXT = list(COUNTRY_TO_EXT.values())
-MAX_STRING_LEN = 17 # TMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Used to be 35
+MAX_STRING_LEN = 35
 
 
 def run_decoder(rnn, address_prefix, step_length, hidden_layer):
@@ -63,6 +63,7 @@ class PhoneCSIS(nn.Module):
 
         if use_cuda: self.cuda()
 
+
     def guide(self, observations={}):
         """
         Observations: A dictionary with a single key/value pair of form <'x': phone number tensor>
@@ -71,14 +72,14 @@ class PhoneCSIS(nn.Module):
         """
         pyro.module("encoder", self.encoder_rnn)
         pyro.module("prefix", self.prefix_rnn)
-        #pyro.module("number_part_len_rnn", self.number_part_len_rnn)
-        #pyro.module("number", self.number_rnn)
+        pyro.module("number_part_len_rnn", self.number_part_len_rnn)
+        pyro.module("number", self.number_rnn)
         pyro.module("ext_format", self.ext_format_mlp)
         pyro.module("ext_index", self.ext_mlp)
         pyro.module("prefix_format", self.prefix_format_mlp)
         pyro.module("prefix_format", self.prefix_len_mlp)
-        #pyro.module("number_len", self.number_len_mlp)
-        #pyro.module("number_format", self.number_format_mlp)
+        pyro.module("number_len", self.number_len_mlp)
+        pyro.module("number_format", self.number_format_mlp)
     
         x = to_rnn_tensor(observations['x'])
         encoder_hidden = self.encoder_rnn.blank_hidden_layer()
@@ -97,7 +98,6 @@ class PhoneCSIS(nn.Module):
         pyro.sample("prefix_format", dist.Categorical(prefix_format_probs)).item()
         prefix_len = pyro.sample("prefix_len", dist.Categorical(prefix_len_probs)).item() + 2
         prefix, prefix_hidden = run_decoder(self.prefix_rnn,'prefix',step_length=prefix_len,hidden_layer=encoder_hidden)
-        """
         number_parts = []
         number_len_probs = self.number_len_mlp(flattened_encoder_hidden)
         number_len = pyro.sample("number_len", dist.Categorical(number_len_probs)).item() + 2
@@ -114,7 +114,7 @@ class PhoneCSIS(nn.Module):
         canonical_number = "" if ext == "" else f"+{ext}-"
         canonical_number += f"({prefix})-"+'-'.join(number_parts)
         return {'canonical_number': canonical_number}
-        """
+    
 
     def model(self, observations={'x': torch.zeros(1,1)}):
         """
@@ -128,7 +128,6 @@ class PhoneCSIS(nn.Module):
         7 Sample main number components repeatedly from RNN
         8 One hot encode the assembled number and observe them against real data
         """
-
         ext_format = pyro.sample("ext_format", dist.Categorical(torch.tensor([1/6]*6))).item()
         ext_index = pyro.sample("ext_index", dist.Categorical(torch.tensor([1/len(EXT)]*len(EXT)))).item()
         full_ext = format_ext(EXT[ext_index], ext_format)
@@ -138,10 +137,9 @@ class PhoneCSIS(nn.Module):
         prefix_digits = ""
         for i in range(prefix_len):
             curr_digit = pyro.sample(f"prefix_{i}", dist.Categorical(torch.tensor([1/N_DIGIT]*N_DIGIT))).item()
-            prefix_digits += str(curr_digit)
-        
+            prefix_digits += str(curr_digit)        
         full_prefix = format_prefix(prefix_digits,prefix_format)
-        """
+
         number_parts = []
         number_len = pyro.sample("number_len", dist.Categorical(torch.tensor([.65,.25,.1]))).item() + 2 # From 2 to 5
         number_format = pyro.sample("number_format", dist.Categorical(torch.tensor([1/3]*3))).item()
@@ -152,29 +150,12 @@ class PhoneCSIS(nn.Module):
                 number = pyro.sample(f"number_part_{i}_{j}", dist.Categorical(torch.tensor([1/N_DIGIT]*N_DIGIT))).item()
                 number_part_digits += str(number)
             number_parts.append(number_part_digits)
-
         full_number = format_number(number_parts, number_format)
-        """
-        # TMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        full_number = ""
 
         output = full_ext + full_prefix + full_number
         probs = strings_to_probs(strings=[output], max_string_len=MAX_STRING_LEN)
-        
         pyro.sample("x", dist.Categorical(probs), obs=observations['x'])
-        """
-        return {
-            "output": output, 
-            "latents": {
-                "ext_format": ext_format, 
-                "ext_index": ext_index, 
-                "prefix_format": prefix_format,
-                "prefix_len": prefix_len,
-                "number_len": number_len,
-                "number_format": number_format
-                }
-            }
-        """
+
 
     def save_checkpoint(self, folder="nn_model", filename="checkpoint.pth.tar"):
         filepath = os.path.join(folder, filename)
@@ -183,16 +164,16 @@ class PhoneCSIS(nn.Module):
         save_content = {
             'encoder_rnn': self.encoder_rnn.state_dict(),
             'prefix_rnn': self.prefix_rnn.state_dict(),
-            #'number_rnn': self.number_rnn.state_dict(),
+            'number_rnn': self.number_rnn.state_dict(),
             'ext_exists_mlp': self.ext_exists_mlp.state_dict(),
             'ext_format_mlp': self.ext_format_mlp.state_dict(),
             'ext_mlp': self.ext_mlp.state_dict(),
             'prefix_format_mlp': self.prefix_format_mlp.state_dict(),
-            #'number_format_mlp': self.number_format_mlp.state_dict(),
-            #'number_len_mlp': self.number_len_mlp.state_dict(),
+            'number_format_mlp': self.number_format_mlp.state_dict(),
+            'number_len_mlp': self.number_len_mlp.state_dict(),
 
             'prefix_len_mlp': self.prefix_len_mlp.state_dict(),
-            #'number_part_len_rnn': self.number_part_len_rnn.state_dict()
+            'number_part_len_rnn': self.number_part_len_rnn.state_dict()
         }
         torch.save(save_content, filepath)
 
@@ -203,16 +184,16 @@ class PhoneCSIS(nn.Module):
         save_content = torch.load(filepath)
         self.encoder_rnn.load_state_dict(save_content['encoder_rnn'])
         self.prefix_rnn.load_state_dict(save_content['prefix_rnn'])
-        # self.number_rnn.load_state_dict(save_content['number_rnn'])
+        self.number_rnn.load_state_dict(save_content['number_rnn'])
         self.ext_exists_mlp.load_state_dict(save_content['ext_exists_mlp'])
         self.ext_format_mlp.load_state_dict(save_content['ext_format_mlp'])
         self.ext_mlp.load_state_dict(save_content['ext_mlp'])
         self.prefix_format_mlp.load_state_dict(save_content['prefix_format_mlp'])
-        #self.number_format_mlp.load_state_dict(save_content['number_format_mlp'])
-        #self.number_len_mlp.load_state_dict(save_content['number_len_mlp'])
+        self.number_format_mlp.load_state_dict(save_content['number_format_mlp'])
+        self.number_len_mlp.load_state_dict(save_content['number_len_mlp'])
 
         self.prefix_len_mlp.load_state_dict(save_content['prefix_len_mlp'])
-        #self.number_part_len_rnn.load_state_dict(save_content['number_part_len_rnn'])
+        self.number_part_len_rnn.load_state_dict(save_content['number_part_len_rnn'])
 
 """
 from util.convert import strings_to_tensor, letter_to_index
