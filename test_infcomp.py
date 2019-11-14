@@ -20,6 +20,7 @@ config = load_json(sys.argv[1])
 SESSION_NAME = config['session_name']
 NUM_INFERENCE_SAMPLES = config['num_inference_samples']
 NUM_POSTERIOR_SAMPLES = config['num_posterior_samples']
+HIDDEN_SIZE = config['hidden_size'] if 'hidden_size' in config else 16
 
 TEST_DATASET = [
     "+1 (604) 250 1363",
@@ -27,7 +28,7 @@ TEST_DATASET = [
 ]
 
 
-phone_csis = PhoneCSIS()
+phone_csis = PhoneCSIS(hidden_size=HIDDEN_SIZE)
 phone_csis.load_checkpoint(filename=f"infcomp_{SESSION_NAME}.pth.tar")
 
 csis = pyro.infer.CSIS(phone_csis.model, phone_csis.guide, Adam({'lr': 0.001}), num_inference_samples=NUM_INFERENCE_SAMPLES)

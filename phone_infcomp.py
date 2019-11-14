@@ -32,8 +32,9 @@ def run_decoder(rnn, address_prefix, step_length, hidden_layer):
         rnn_input = torch.zeros(1, batch_size, rnn.input_size)
         rnn_input[0,0,next_char_index] = 1.
         next_char_probs, hidden_layer = rnn(rnn_input, hidden_layer)
-        next_char_index = pyro.sample(f"{address_prefix}_{address_suffix}", dist.Categorical(next_char_probs)).item()
-        generated += str(next_char_index)
+        sampled_index = pyro.sample(f"{address_prefix}_{address_suffix}", dist.Categorical(next_char_probs)).item()
+        generated += str(sampled_index)
+        next_char_index = torch.argmax(next_char_probs, dim=2).item() # Next Character is the one with highest prob, not sampled ??????????????
         address_suffix += 1
     return generated, hidden_layer
 
