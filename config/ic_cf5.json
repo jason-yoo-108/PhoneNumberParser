@@ -3,8 +3,9 @@
         "lr": 0.0005
     },
     "cuda": false,
-    "num_epochs": 200000,
-    "session_name": "ic_cf1",
+    "num_epochs": 100000,
+    "hidden_size": 16,
+    "session_name": "ic_cf5",
     "continue_training": false,
     "num_inference_samples": 500,
     "num_posterior_samples": 10
