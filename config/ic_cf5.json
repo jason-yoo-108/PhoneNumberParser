@@ -3,10 +3,10 @@
         "lr": 0.0005
     },
     "cuda": false,
-    "num_epochs": 100000,
+    "num_epochs": 500,
     "hidden_size": 16,
     "session_name": "ic_cf5",
     "continue_training": false,
-    "num_inference_samples": 500,
+    "num_inference_samples": 30000,
     "num_posterior_samples": 10
 }
