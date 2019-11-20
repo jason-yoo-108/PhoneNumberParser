@@ -1,0 +1,12 @@
+{
+    "adam": {
+        "lr": 0.0001
+    },
+    "cuda": false,
+    "num_epochs": 100000,
+    "hidden_size": 32,
+    "session_name": "ic_cf8",
+    "continue_training": false,
+    "num_inference_samples": 500,
+    "num_posterior_samples": 10
+}

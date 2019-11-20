@@ -44,11 +44,11 @@ class PhoneCSIS(nn.Module):
     def __init__(self, hidden_size=16, use_cuda=False):
         super(PhoneCSIS, self).__init__()
 
-        self.encoder_rnn = Encoder(input_size=N_LETTER, hidden_size=hidden_size)
+        self.encoder_rnn = Encoder(input_size=N_LETTER, hidden_size=hidden_size, num_layers=2)
         # +1 in Decoder's input_size is for the Start of Sentence token
-        self.prefix_rnn = Decoder(input_size=N_DIGIT+1, hidden_size=hidden_size, output_size=N_DIGIT)
-        self.number_rnn = Decoder(input_size=N_DIGIT+1, hidden_size=hidden_size, output_size=N_DIGIT)
-        self.number_part_len_rnn = Decoder(input_size=3+1, hidden_size=hidden_size, output_size=3)
+        #self.prefix_rnn = Decoder(input_size=N_DIGIT+1, hidden_size=hidden_size, output_size=N_DIGIT)
+        self.number_rnn = Decoder(input_size=N_DIGIT+1, hidden_size=hidden_size, output_size=N_DIGIT, num_layers=2)
+        self.number_part_len_rnn = Decoder(input_size=3+1, hidden_size=hidden_size, output_size=3, num_layers=2)
 
         flattened_hidden_size = 2
         for d in self.encoder_rnn.blank_hidden_layer()[0].shape:
@@ -72,7 +72,7 @@ class PhoneCSIS(nn.Module):
         2 pass the Encoder's hidden states to Decoders and MLPs to sample latents
         """
         pyro.module("encoder", self.encoder_rnn)
-        pyro.module("prefix", self.prefix_rnn)
+        #pyro.module("prefix", self.prefix_rnn)
         pyro.module("number_part_len_rnn", self.number_part_len_rnn)
         pyro.module("number", self.number_rnn)
         pyro.module("ext_format", self.ext_format_mlp)
@@ -98,7 +98,7 @@ class PhoneCSIS(nn.Module):
         prefix_len_probs = self.prefix_len_mlp(flattened_encoder_hidden)
         pyro.sample("prefix_format", dist.Categorical(prefix_format_probs)).item()
         prefix_len = pyro.sample("prefix_len", dist.Categorical(prefix_len_probs)).item() + 2
-        prefix, prefix_hidden = run_decoder(self.prefix_rnn,'prefix',step_length=prefix_len,hidden_layer=encoder_hidden)
+        prefix, prefix_hidden = run_decoder(self.number_rnn,'prefix',step_length=prefix_len,hidden_layer=encoder_hidden)
         number_parts = []
         number_len_probs = self.number_len_mlp(flattened_encoder_hidden)
         number_len = pyro.sample("number_len", dist.Categorical(number_len_probs)).item() + 2
@@ -164,7 +164,7 @@ class PhoneCSIS(nn.Module):
             os.mkdir(folder)
         save_content = {
             'encoder_rnn': self.encoder_rnn.state_dict(),
-            'prefix_rnn': self.prefix_rnn.state_dict(),
+            #'prefix_rnn': self.prefix_rnn.state_dict(),
             'number_rnn': self.number_rnn.state_dict(),
             'ext_exists_mlp': self.ext_exists_mlp.state_dict(),
             'ext_format_mlp': self.ext_format_mlp.state_dict(),
@@ -184,7 +184,7 @@ class PhoneCSIS(nn.Module):
             raise Exception(f"No model in path {folder}")
         save_content = torch.load(filepath)
         self.encoder_rnn.load_state_dict(save_content['encoder_rnn'])
-        self.prefix_rnn.load_state_dict(save_content['prefix_rnn'])
+        #self.prefix_rnn.load_state_dict(save_content['prefix_rnn'])
         self.number_rnn.load_state_dict(save_content['number_rnn'])
         self.ext_exists_mlp.load_state_dict(save_content['ext_exists_mlp'])
         self.ext_format_mlp.load_state_dict(save_content['ext_format_mlp'])
