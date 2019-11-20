@@ -49,7 +49,7 @@ def strings_to_probs(strings: list, max_string_len: int, true_index_prob: float 
     """
     Turn a list of strings into probabilities over rows where the element of the index
     of character has probability of 0.99 and others 0.01/(size(n_letters)-1)
-    of shape: <max_string_len x batch_size (length of strings) x n_letters>
+    of shape: <max_string_len x batch_size (length of strings list) x n_letters>
     """
     strings = list(map(lambda name: pad_string(name, max_string_len), strings))
     default_index_prob = (1.-true_index_prob)/N_LETTER

@@ -73,12 +73,12 @@ class PhoneCSIS(nn.Module):
         """
         pyro.module("encoder", self.encoder_rnn)
         pyro.module("prefix", self.prefix_rnn)
-        pyro.module("number_part_len_rnn", self.number_part_len_rnn)
+        pyro.module("number_part_len", self.number_part_len_rnn)
         pyro.module("number", self.number_rnn)
         pyro.module("ext_format", self.ext_format_mlp)
         pyro.module("ext_index", self.ext_mlp)
-        pyro.module("prefix_len", self.prefix_format_mlp)
-        pyro.module("prefix_format", self.prefix_len_mlp)
+        pyro.module("prefix_len", self.prefix_len_mlp)
+        pyro.module("prefix_format", self.prefix_format_mlp)
         pyro.module("number_len", self.number_len_mlp)
         pyro.module("number_format", self.number_format_mlp)
     
@@ -142,8 +142,8 @@ class PhoneCSIS(nn.Module):
         full_prefix = format_prefix(prefix_digits,prefix_format)
 
         number_parts = []
-        number_len = pyro.sample("number_len", dist.Categorical(torch.tensor([.65,.25,.1]))).item() + 2 # From 2 to 5
         number_format = pyro.sample("number_format", dist.Categorical(torch.tensor([1/3]*3))).item()
+        number_len = pyro.sample("number_len", dist.Categorical(torch.tensor([.65,.25,.1]))).item() + 2 # From 2 to 5
         for i in range(number_len):
             number_part_len = pyro.sample(f"number_part_len_{i}", dist.Categorical(torch.tensor([1/3]*3))).item() + 2 # From 2 to 5
             number_part_digits = ""
