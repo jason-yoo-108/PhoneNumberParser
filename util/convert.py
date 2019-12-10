@@ -45,7 +45,7 @@ def strings_to_tensor(strings: list, max_string_len: int, index_function) -> lis
             tensor[i_char][i_s] = index_function(char)
     return tensor
 
-def strings_to_probs(strings: list, max_string_len: int, true_index_prob: float = 0.99) -> list:
+def strings_to_probs(strings: list, max_string_len: int, true_index_prob: float = 0.999) -> list:
     """
     Turn a list of strings into probabilities over rows where the element of the index
     of character has probability of 0.99 and others 0.01/(size(n_letters)-1)
