@@ -54,7 +54,6 @@ class PhoneParser(Model):
         full_number = format_number(number_parts, number_format)
 
         output = pad_string(original=full_ext+full_prefix+full_number, desired_len=MAX_STRING_LEN)
-        print(output)
         # make a categorical distribution that observes each letter independently (like 35 independent categoricals)
         probs = torch.ones(MAX_STRING_LEN, N_LETTER)*0.001
         for i, letter in enumerate(output):
