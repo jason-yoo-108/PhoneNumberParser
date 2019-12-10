@@ -3,7 +3,7 @@
         "lr": 0.0005
     },
     "cuda": false,
-    "num_epochs": 200000,
+    "num_epochs": 2,
     "session_name": "ic_cf1",
     "continue_training": false,
     "num_inference_samples": 500,

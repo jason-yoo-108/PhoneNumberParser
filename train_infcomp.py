@@ -16,6 +16,7 @@ from phone_infcomp import PhoneCSIS
 import os
 import sys
 
+pyro.enable_validation(True)
 
 """
 Usage: python train_infcomp.py <Config File Path>
@@ -30,7 +31,7 @@ HIDDEN_SIZE = config['hidden_size'] if 'hidden_size' in config else 16
 
 phone_csis = PhoneCSIS(hidden_size=HIDDEN_SIZE)
 optimizer = Adam(ADAM_CONFIG)
-if CONTINUE_TRAINING: phone_csis.load_checkpoint(filename="infcomp_{SESSION_NAME}.pth.tar")
+if CONTINUE_TRAINING: phone_csis.load_checkpoint(filename=f"infcomp_{SESSION_NAME}.pth.tar")
 
 csis = pyro.infer.CSIS(phone_csis.model, phone_csis.guide, optimizer, num_inference_samples=10, training_batch_size=30)
 losses = []
