@@ -1,5 +1,3 @@
-# Structured Variational Autoencoder for Parsing Phone Numbers
+# Unsupervised Parsing Phone Numbers
 
-Training: `make train CONFIG=<path to config file>`
-
-Testing: `make test CONFIG=<path to config file>`
+Regex Approach: https://github.com/daviddrysdale/python-phonenumbers
