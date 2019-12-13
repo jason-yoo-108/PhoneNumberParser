@@ -106,7 +106,7 @@ class PhoneParser(Model):
                 number = int(pyprob.sample(dists.Categorical(torch.tensor([1/N_DIGIT]*N_DIGIT))).item())
                 number_block_digits += str(number)
             line_number_blocks.append(number_block_digits)
-        line_number = "".join(line_number_blocks)
+        line_number = " ".join(line_number_blocks)
         line_format = int(pyprob.sample(dists.Categorical(torch.tensor([1/3]*3))).item())
         full_line = format_line_number(line_number_blocks, line_format)
 
