@@ -1,6 +1,6 @@
 import argparse
 import pyprob
-from plai_new import PhoneParser
+from infcomp import PhoneParser
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--number', help='Number to parse', nargs='?', default='+1 (604) 250 1363', type=str)

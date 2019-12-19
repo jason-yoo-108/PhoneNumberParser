@@ -10,7 +10,7 @@ from pyro.optim import Adam
 
 from data_loader.data_loader import load_json
 from util.convert import strings_to_tensor, letter_to_index
-from phone_infcomp import PhoneCSIS, MAX_STRING_LEN
+from infcomp_pyro import PhoneCSIS, MAX_STRING_LEN
 
 import os
 import sys

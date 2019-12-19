@@ -11,11 +11,12 @@ from pyro.optim import Adam
 
 from data_loader.data_loader import load_json
 from util.convert import strings_to_tensor
-from phone_infcomp_simple import PhoneCSIS
+from infcomp_pyro import PhoneCSIS
 
 import os
 import sys
 
+pyro.enable_validation(True)
 
 """
 Usage: python train_infcomp.py <Config File Path>

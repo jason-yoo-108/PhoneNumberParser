@@ -1,6 +1,6 @@
 import argparse
 import pyprob
-from plai_new import PhoneParser
+from infcomp import PhoneParser
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_traces', help='# traces to evaluate per training step', nargs='?', default=5000000, type=int)

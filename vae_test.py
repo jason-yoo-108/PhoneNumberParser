@@ -2,7 +2,7 @@ import sys
 
 from data_loader.data_loader import load_json
 from util.convert import strings_to_tensor, SOS_CHAR
-from phone_vae import PhoneVAE
+from vae import PhoneVAE
 
 """
 Predict using SVAE with trained weights
