@@ -1,4 +1,5 @@
 import argparse
+from functools import reduce
 import pyprob
 from infcomp import PhoneParser
 
@@ -28,5 +29,14 @@ post = model.posterior_distribution(
     num_traces=NUM_TRACES
 )
 
+trace_value_list = post.values_numpy()
+trace_prob_list = post.log_weights_numpy()
+
+argmax_index = reduce(lambda x,y: x if x[1]>y[1] else y, enumerate(trace_prob_list))[0]
+posterior_mode = trace_value_list[argmax_index]
+
+print("Posterior Samples")
 for i in range(NUM_SAMPLES):
     print(post.sample())
+
+print(f"Prediction: {posterior_mode[1]}")
